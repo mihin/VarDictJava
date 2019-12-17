@@ -21,12 +21,18 @@ afterEvaluate {
     }
 }
 
+def sparkVersion = "3.0.0-preview"
+//def sparkVersion = "2.4.0"
+
 dependencies {
     compile 'commons-cli:commons-cli:1.2' 
     compile 'com.edropple.jregex:jregex:1.2_01'
     compile('com.github.samtools:htsjdk:2.8.0') {
         transitive = false
     }
+
+    compile "org.apache.spark:spark-core_2.12:$sparkVersion"
+
     testCompile 'org.mockito:mockito-core:2.23.0'
     testCompile 'org.testng:testng:6.9.13.6'
 }

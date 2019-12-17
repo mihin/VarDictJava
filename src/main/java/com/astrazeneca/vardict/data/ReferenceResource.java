@@ -9,6 +9,7 @@ import htsjdk.samtools.reference.ReferenceSequence;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -20,14 +21,15 @@ import static com.astrazeneca.vardict.Utils.substr;
 /**
  * Utility class for access to reference sequences
  */
-public class ReferenceResource {
+public class ReferenceResource implements Serializable {
     /**
      * Fasta files store in thread local variables to avoid multithreading issues.
      */
-    private ThreadLocal<Map<String, IndexedFastaSequenceFile>> threadLocalFastaFiles = ThreadLocal.withInitial(HashMap::new);
+//    private ThreadLocal<Map<String, IndexedFastaSequenceFile>> threadLocalFastaFiles = ThreadLocal.withInitial(HashMap::new);
+    private Map<String, IndexedFastaSequenceFile> threadLocalFastaFiles = new HashMap<>();
 
     synchronized private IndexedFastaSequenceFile fetchFasta(String file) {
-        return threadLocalFastaFiles.get().computeIfAbsent(
+        return threadLocalFastaFiles.computeIfAbsent(
                 file,
                 (f) -> {
                     try {

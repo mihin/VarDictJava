@@ -1,18 +1,26 @@
 package com.astrazeneca.vardict.modes;
 
-import com.astrazeneca.vardict.data.ReferenceResource;
 import com.astrazeneca.vardict.collection.DirectThreadExecutor;
 import com.astrazeneca.vardict.data.Reference;
+import com.astrazeneca.vardict.data.ReferenceResource;
 import com.astrazeneca.vardict.data.Region;
 import com.astrazeneca.vardict.data.scopedata.AlignedVarsData;
 import com.astrazeneca.vardict.data.scopedata.InitialData;
 import com.astrazeneca.vardict.data.scopedata.Scope;
 import com.astrazeneca.vardict.postprocessmodules.SimplePostProcessModule;
+import com.astrazeneca.vardict.printers.PrinterType;
 import com.astrazeneca.vardict.printers.VariantPrinter;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -39,12 +47,35 @@ public class SimpleMode extends AbstractMode {
     @Override
     public void notParallel() {
         VariantPrinter variantPrinter = VariantPrinter.createPrinter(instance().printerTypeOut);
-
+        List<Procedure> tasks = new ArrayList<>();
         for (List<Region> list : segments) {
             for (Region region : list) {
-                processBamInPipeline(region, variantPrinter);
+                tasks.add(() ->
+                        processBamInPipeline(region, variantPrinter)
+                );
             }
         }
+
+        long start = System.currentTimeMillis();
+        SparkConf conf = new SparkConf().setAppName("VarDict").setMaster("local");
+        JavaSparkContext sc = new JavaSparkContext(conf);
+        sc.setLogLevel("ERROR");
+        Logger rootLogger = Logger.getRootLogger();
+        rootLogger.setLevel(Level.ERROR);
+        JavaRDD<Procedure> rdd = sc.parallelize(tasks);
+        rdd.foreach(r -> r.run());
+
+        System.out.println(" -----======= Spark! SimpleMode.notParallel. finished in : " + (System.currentTimeMillis() - start));
+
+//        VariantPrinter variantPrinter = VariantPrinter.createPrinter(instance().printerTypeOut);
+//        long start = System.currentTimeMillis();
+//        for (List<Region> list : segments) {
+//
+//            for (Region region : list) {
+//                processBamInPipeline(region, variantPrinter);
+//            }
+//        }
+//        System.out.println(" -----======= Segment finished in : " + (System.currentTimeMillis() - start));
     }
 
     /**
@@ -69,7 +100,7 @@ public class SimpleMode extends AbstractMode {
     /**
      * Class needed for simple parallel mode. Each worker will process pipeline for region.
      */
-    private class VardictWorker implements Callable<OutputStream> {
+    private class VardictWorker implements Callable<OutputStream>, Serializable {
         private Region region;
 
         public VardictWorker(Region region) {
@@ -89,10 +120,14 @@ public class SimpleMode extends AbstractMode {
         }
     }
 
+    private interface Procedure extends Runnable, Serializable {
+    }
+
     /**
      * For each segment and region starts the pipeline.
+     *
      * @param region region from BED file/-R option to process.
-     * @param out variant printer used for output
+     * @param out    variant printer used for output
      */
     private void processBamInPipeline(Region region, VariantPrinter out) {
         Reference reference = tryToGetReference(region);

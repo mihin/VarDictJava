@@ -32,6 +32,10 @@ public class SimplePostProcessModule implements Consumer<Scope<AlignedVarsData>>
     @Override
     public void accept(Scope<AlignedVarsData> mapScope) {
         int lastPosition = 0;
+
+        // Spark mode hack
+        variantPrinter.setOut(System.out);
+
         for (Map.Entry<Integer, Vars> ent : mapScope.data.alignedVariants.entrySet()) {
             try {
                 int position = ent.getKey();

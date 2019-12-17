@@ -43,6 +43,7 @@ public class VarDictLauncher {
 
     /**
      * Initialize resources and starts the needed VarDict mode (amplicon/simple/somatic/splicing).
+     *
      * @param config starting configuration
      */
     public void start(Configuration config) {
@@ -61,15 +62,19 @@ public class VarDictLauncher {
             mode = new AmpliconMode(segments, referenceResource);
         }
         setMode(mode);
+
         if (instance().conf.threads == 1)
             mode.notParallel();
         else
             mode.parallel();
+
+        System.out.println("Mode: " + mode + ", threads: " + instance().conf.threads);
     }
 
     /**
      * Initializes resources:read sample names, chromosome names and lengths from BAM file, read segments
      * from BED file or region (-R option) and initialize GlobalREadOnlyScope.
+     *
      * @param conf Vardict Configuration (parameters from command line)
      */
     private void initResources(Configuration conf) {
@@ -106,7 +111,7 @@ public class VarDictLauncher {
             Map<String, Integer> adaptorForward = new HashMap<>();
             Map<String, Integer> adaptorReverse = new HashMap<>();
             if (!conf.adaptor.isEmpty()) {
-                for(String sequence : conf.adaptor) {
+                for (String sequence : conf.adaptor) {
                     for (int i = 0; i <= 6 && i + Configuration.ADSEED < sequence.length(); i++) {
                         String forwardSeed = substr(sequence, i, Configuration.ADSEED);
                         String reverseSeed = complement(reverse(forwardSeed));
@@ -179,6 +184,7 @@ public class VarDictLauncher {
 
     /**
      * Read map of chromosome lengths
+     *
      * @param bam BAM file name
      * @return Map of chromosome lengths. Key - chromosome name, value - length
      * @throws IOException if BAM/SAM file can't be opened
@@ -200,6 +206,7 @@ public class VarDictLauncher {
     /**
      * Fills the sample name for simple and amplicon modes.
      * If sample name wasn't set with command line parameter -N, it will be set to pattern contains name of BAM file.
+     *
      * @param conf configuration of Vardict
      * @return tuple of sample for the BAM and empty sample for the second (absent) BAM
      */
@@ -235,6 +242,7 @@ public class VarDictLauncher {
     /**
      * Fills the sample name for somatic modes.
      * If sample name wasn't set with command line parameter -N, it will be set to pattern contains name of BAM file.
+     *
      * @param conf configuration of Vardict
      * @return tuple of sample for the first BAM and sample for the second BAM
      */

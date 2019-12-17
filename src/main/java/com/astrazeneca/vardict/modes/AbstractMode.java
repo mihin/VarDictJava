@@ -10,6 +10,7 @@ import com.astrazeneca.vardict.modules.*;
 import com.astrazeneca.vardict.printers.VariantPrinter;
 
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -18,7 +19,7 @@ import static com.astrazeneca.vardict.data.scopedata.GlobalReadOnlyScope.instanc
 /**
  * Abstract Mode of VarDict. Provide interfaces for possible modes (not-parallel and parallel) and typical pipelines.
  */
-public abstract class AbstractMode {
+public abstract class AbstractMode implements Serializable {
     /**
      * CompletableFuture which used to trigger the executor that it was the last Future in the chain. After adding it,
      * the variants will be printed.
@@ -37,12 +38,13 @@ public abstract class AbstractMode {
      * Starts the typical pipeline of VarDict on each region. It parse SAM/BAM file, for each record parse CIGAR,
      * modify it if needed, create Variations, realign variations, search for Structural Variants and create map of
      * aligned variants ready for output preparation.
+     *
      * @param initialDataScope initial data for pipeline. contains data about BAM, region, reference
-     * @param executor current Executor for parallel/single mode
+     * @param executor         current Executor for parallel/single mode
      * @return object contains map of aligned variants
      */
     public CompletableFuture<Scope<AlignedVarsData>> pipeline(Scope<InitialData> initialDataScope,
-                                                                     Executor executor) {
+                                                              Executor executor) {
         return CompletableFuture.supplyAsync(
                 () -> new SAMFileParser().process(initialDataScope), executor)
                 .thenApply(new CigarParser(false)::process)
@@ -58,12 +60,13 @@ public abstract class AbstractMode {
     /**
      * Method for stopping VarDict with Exception. Number of exceptions set by Configuration.MAX_EXCEPTION_COUNT can be
      * skipped, but after this limit program must stop even in parallel mode (where Executor may hang on Exception).
+     *
      * @param region region where Exception occurs
-     * @param ex initial exception
+     * @param ex     initial exception
      */
     void stopVardictWithException(Region region, Throwable ex) {
         System.err.println("Critical exception occurs on region: "
-                + region.chr +":" + region.start + "-" + region.end + ", program will be stopped.");
+                + region.chr + ":" + region.start + "-" + region.end + ", program will be stopped.");
         ex.printStackTrace();
         System.exit(1);
     }
@@ -71,13 +74,14 @@ public abstract class AbstractMode {
     /**
      * Starts the partial pipeline of VarDict on each region needed while searching structural variants on extended regions.
      * It parse SAM/BAM file, for each record parse CIGAR, modify it if needed and create Variations.
+     *
      * @param currentScope current data for pipeline. contains data about BAM, region, reference and already
      *                     filled maps of variations and softclips
-     * @param executor current Executor for parallel/single mode
+     * @param executor     current Executor for parallel/single mode
      * @return object contains variation data (updated maps of variations and softclips).
      */
     public CompletableFuture<Scope<VariationData>> partialPipeline(Scope<InitialData> currentScope,
-                                                                          Executor executor) {
+                                                                   Executor executor) {
         return CompletableFuture.supplyAsync(
                 () -> new SAMFileParser().process(currentScope), executor)
                 .thenApply(new CigarParser(true)::process);
@@ -85,13 +89,14 @@ public abstract class AbstractMode {
 
     /**
      * Starts pipeline for splicing mode: output only information about splice counts (N in CIGAR reads).
+     *
      * @param currentScope current data for pipeline. contains data about BAM, region, reference and already
      *                     filled maps of variations and softclips
-     * @param executor current Executor for parallel/single mode
+     * @param executor     current Executor for parallel/single mode
      * @return empty object for variation data.
      */
     public CompletableFuture<Scope<VariationData>> splicingPipeline(Scope<InitialData> currentScope,
-                                                                          Executor executor) {
+                                                                    Executor executor) {
         return CompletableFuture.supplyAsync(
                 () -> new SAMFileParser().process(currentScope), executor)
                 .thenApply(new CigarParser(false)::process);
@@ -129,8 +134,12 @@ public abstract class AbstractMode {
                     if (wrk == LAST_SIGNAL_FUTURE) {
                         break;
                     }
-                    VariantPrinter variantPrinter = VariantPrinter.createPrinter(instance().printerTypeOut);
-                    variantPrinter.print(wrk.get());
+                    if (wrk.get() != null) {
+                        VariantPrinter variantPrinter = VariantPrinter.createPrinter(instance().printerTypeOut);
+                        variantPrinter.print(wrk.get());
+                    } else {
+                        System.err.println("AbstractParallelMode::process. Failed to print NULL value!");
+                    }
                 }
             } catch (InterruptedException | ExecutionException e) {
                 throw new RuntimeException(e);

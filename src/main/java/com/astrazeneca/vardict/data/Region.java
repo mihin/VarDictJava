@@ -1,12 +1,13 @@
 package com.astrazeneca.vardict.data;
 
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Class for holding region from BED file
  */
-public class Region {
+public class Region implements Serializable {
     /**
      * Chromosome name
      */
