@@ -108,6 +108,10 @@ public abstract class AbstractMode implements Serializable {
         createParallelMode().process();
     }
 
+    public void spark() {
+        // TODO Implement for all modes
+    }
+
     protected abstract AbstractParallelMode createParallelMode();
 
     /**

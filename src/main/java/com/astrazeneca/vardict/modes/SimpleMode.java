@@ -47,6 +47,21 @@ public class SimpleMode extends AbstractMode {
     @Override
     public void notParallel() {
         VariantPrinter variantPrinter = VariantPrinter.createPrinter(instance().printerTypeOut);
+        long start = System.currentTimeMillis();
+        for (List<Region> list : segments) {
+
+            for (Region region : list) {
+                processBamInPipeline(region, variantPrinter);
+            }
+        }
+        System.out.println("|| notParallel mode :: Finished in : " + (System.currentTimeMillis() - start) + "ms");
+    }
+
+    @Override
+    public void spark() {
+        long start = System.currentTimeMillis();
+
+        VariantPrinter variantPrinter = VariantPrinter.createPrinter(instance().printerTypeOut);
         List<Procedure> tasks = new ArrayList<>();
         for (List<Region> list : segments) {
             for (Region region : list) {
@@ -56,7 +71,6 @@ public class SimpleMode extends AbstractMode {
             }
         }
 
-        long start = System.currentTimeMillis();
         SparkConf conf = new SparkConf().setAppName("VarDict").setMaster("local");
         JavaSparkContext sc = new JavaSparkContext(conf);
         sc.setLogLevel("ERROR");
@@ -65,17 +79,7 @@ public class SimpleMode extends AbstractMode {
         JavaRDD<Procedure> rdd = sc.parallelize(tasks);
         rdd.foreach(r -> r.run());
 
-        System.out.println(" -----======= Spark! SimpleMode.notParallel. finished in : " + (System.currentTimeMillis() - start));
-
-//        VariantPrinter variantPrinter = VariantPrinter.createPrinter(instance().printerTypeOut);
-//        long start = System.currentTimeMillis();
-//        for (List<Region> list : segments) {
-//
-//            for (Region region : list) {
-//                processBamInPipeline(region, variantPrinter);
-//            }
-//        }
-//        System.out.println(" -----======= Segment finished in : " + (System.currentTimeMillis() - start));
+        System.out.println("|| Spark mode :: Finished in : " + (System.currentTimeMillis() - start) + "ms");
     }
 
     /**
@@ -86,6 +90,8 @@ public class SimpleMode extends AbstractMode {
         return new AbstractParallelMode() {
             @Override
             void produceTasks() throws InterruptedException {
+                long start = System.currentTimeMillis();
+
                 for (List<Region> list : segments) {
                     for (Region region : list) {
                         Future<OutputStream> submit = executor.submit(new VardictWorker(region));
@@ -93,6 +99,9 @@ public class SimpleMode extends AbstractMode {
                     }
                 }
                 toPrint.put(LAST_SIGNAL_FUTURE);
+
+                System.out.println("|| parallel mode :: Finished in : " + (System.currentTimeMillis() - start) + "ms");
+
             }
         };
     }

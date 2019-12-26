@@ -65,6 +65,8 @@ public class VarDictLauncher {
 
         if (instance().conf.threads == 1)
             mode.notParallel();
+        else if (instance().conf.threads == 2)
+            mode.spark();
         else
             mode.parallel();
 
